@@ -92,6 +92,7 @@ _pythonMajorVersion = sys.version_info[0]
 # Modes of crypting / cyphering
 ECB =	0
 CBC =	1
+CFB =	2
 
 # Modes of padding
 PAD_NORMAL = 1
@@ -137,7 +138,7 @@ class _baseDes(object):
 		return self._mode
 
 	def setMode(self, mode):
-		"""Sets the type of crypting mode, pyDes.ECB or pyDes.CBC"""
+		"""Sets the type of crypting mode, pyDes.ECB, pyDes.CBC or pyDes.CFB"""
 		self._mode = mode
 
 	def getPadding(self):
@@ -576,11 +577,11 @@ class des(_baseDes):
 				data += (self.block_size - (len(data) % self.block_size)) * self.getPadding()
 			# print "Len of data: %f" % (len(data) / self.block_size)
 
-		if self.getMode() == CBC:
+		if self.getMode() == CBC or self.getMode() == CFB:
 			if self.getIV():
 				iv = self.__String_to_BitList(self.getIV())
 			else:
-				raise ValueError("For CBC mode, you must supply the Initial Value (IV) for ciphering")
+				raise ValueError("For CBC or CFB mode, you must supply the Initial Value (IV) for ciphering")
 
 		# Split the data into blocks, crypting each one seperately
 		i = 0
@@ -620,6 +621,16 @@ class des(_baseDes):
 					iv = block
 				else:
 					iv = processed_block
+			elif self.getMode() == CFB:			
+				if crypt_type == des.ENCRYPT:
+					processed_block = self.__des_crypt(iv, des.ENCRYPT)
+					processed_block = list(map(lambda x, y: x ^ y, processed_block, block))
+					iv = processed_block
+					
+				elif crypt_type == des.DECRYPT:
+					processed_block = self.__des_crypt(iv, des.ENCRYPT)
+					processed_block = list(map(lambda x, y: x ^ y, processed_block, block))
+					iv = block
 			else:
 				processed_block = self.__des_crypt(block, crypt_type)
 
