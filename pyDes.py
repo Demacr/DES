@@ -85,6 +85,7 @@ Note: This code was not written for high-end systems needing a fast
 """
 
 import sys
+import binascii
 
 # _pythonMajorVersion is used to handle Python2 and Python3 differences.
 _pythonMajorVersion = sys.version_info[0]
@@ -861,3 +862,29 @@ class triple_des(_baseDes):
 			data = self.__key2.crypt(data, ENCRYPT)
 			data = self.__key1.crypt(data, DECRYPT)
 		return self._unpadData(data, pad, padmode)
+		
+class des_hash(_baseDes):
+	def __init__(self, IV, pad=None, padmode=PAD_NORMAL):
+		self.block_size = 8
+		if IV and len(IV) != self.block_size:
+			raise ValueError("Invalid Initial Value (IV), must be a multiple of " + str(self.block_size) + " bytes")
+		k = des(IV, ECB, IV, pad, padmode)
+		self.IV = IV
+		self.k = k
+		
+	def calc_hash(self, data):
+		data = self._guardAgainstUnicode(data)
+		if self.k._padding is not None:
+			self.k._padding = self._guardAgainstUnicode(self.k._padding)
+		data = self._padData(data, self.k._padding, self.k._padmode)
+		i = 0
+		key = self.IV
+		while i < len(data):
+			self.k.setKey(key)
+			temp_hash = self.k.encrypt(data[i:i+8])
+			temp_hash = list(map(lambda x, y: x ^ y, temp_hash, data[i:i+8]))
+			key = temp_hash
+			i += 8
+		key = bytes(key)
+		key = str(binascii.hexlify(key))
+		return ':'.join(key[i:i+2] for i in range(0, len(key), 2))[3:-2]
