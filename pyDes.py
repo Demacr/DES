@@ -86,6 +86,7 @@ Note: This code was not written for high-end systems needing a fast
 
 import sys
 import binascii
+import random
 
 # _pythonMajorVersion is used to handle Python2 and Python3 differences.
 _pythonMajorVersion = sys.version_info[0]
@@ -885,6 +886,26 @@ class des_hash(_baseDes):
 			temp_hash = list(map(lambda x, y: x ^ y, temp_hash, data[i:i+8]))
 			key = temp_hash
 			i += 8
-		key = bytes(key)
-		key = str(binascii.hexlify(key))
-		return ':'.join(key[i:i+2] for i in range(0, len(key), 2))[3:-2]
+		return [key, ':'.join(str(binascii.hexlify(bytes(key)))[i:i+2] for i in range(0, len(str(binascii.hexlify(bytes(key)))), 2))[3:-2]]
+		
+	def crypto_analysis(self, data):
+		data = list(data)
+		dhsum = 0
+		test_count = 20
+		origin = self.calc_hash(data)
+		print("origin =", origin[1])
+		for i in range(0, test_count):
+			rnd = random.randint(0, len(data) - 1)
+			rndbt = random.randint(0, 7)
+			data[rnd] = data[rnd] ^ (2 ** rndbt)
+			blck = rnd // 8
+			new = self.calc_hash(data)
+			dh = 0
+			dharr = list(map(lambda x, y: x ^ y, new[0], origin[0]))
+			for j in range(0, 8):
+				for k in range(0, 7):
+					if (2 ** k) & dharr[j] == (2 ** k):
+						dh += 1 
+			dhsum += dh
+			print(i + 1, "iter =", new[1], "block =", blck + 1, "bit =", rndbt + 1, "hamming =", dh) 
+		print("average hamming =", dhsum / test_count)
